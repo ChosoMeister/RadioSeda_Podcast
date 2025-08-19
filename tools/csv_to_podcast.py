@@ -2,6 +2,7 @@
 import argparse, csv, hashlib, os
 from datetime import datetime, timezone
 from xml.sax.saxutils import escape
+import requests
 
 def now_rfc822():
     return datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S %z")
@@ -26,6 +27,25 @@ def read_rows(path):
         except Exception:
             continue
     raise RuntimeError("Cannot read CSV.")
+
+
+def fetch_audio_length(url: str) -> int:
+    """Return Content-Length of an MP3 after validating required headers.
+
+    Raises RuntimeError if `Content-Type` is not `audio/mpeg`, if
+    `Accept-Ranges` is not `bytes`, or if `Content-Length` is missing.
+    """
+    r = requests.head(url, allow_redirects=True, timeout=30)
+    r.raise_for_status()
+    headers = {k.lower(): v for k, v in r.headers.items()}
+    ctype = headers.get("content-type", "").split(";")[0].strip().lower()
+    if ctype != "audio/mpeg":
+        raise RuntimeError(f"Invalid Content-Type: {headers.get('content-type')}")
+    if headers.get("accept-ranges", "").lower() != "bytes":
+        raise RuntimeError("Accept-Ranges must be 'bytes'")
+    if "content-length" not in headers:
+        raise RuntimeError("Missing Content-Length")
+    return int(headers["content-length"])
 
 def build_item(row, pubdate):
     title = safe_get(row, "Book_Title") or "عنوان بدون نام"
@@ -68,12 +88,13 @@ def build_item(row, pubdate):
             desc_parts.append(f"{label}: {val}")
     desc = "<br/>".join(desc_parts)
 
+    length = fetch_audio_length(audio)
     guid_str = hashlib.sha1(audio.encode("utf-8")).hexdigest()
     parts = []
     parts.append("    <item>")
     parts.append("      <title>" + escape(title) + "</title>")
     parts.append("      <description>" + cdata(desc) + "</description>")
-    parts.append('      <enclosure url="' + escape(audio) + '" length="0" type="audio/mpeg"/>')
+    parts.append('      <enclosure url="' + escape(audio) + '" length="' + str(length) + '" type="audio/mpeg"/>')
     parts.append('      <guid isPermaLink="false">' + guid_str + "</guid>")
     parts.append("      <pubDate>" + pubdate + "</pubDate>")
     if author:
