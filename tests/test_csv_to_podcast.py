@@ -18,7 +18,6 @@ def _mock_response(headers):
 def test_build_item_includes_content_length(mock_head):
     headers = {
         "Content-Type": "audio/mpeg",
-        "Accept-Ranges": "bytes",
         "Content-Length": "321"
     }
     mock_head.return_value = _mock_response(headers)
@@ -28,8 +27,21 @@ def test_build_item_includes_content_length(mock_head):
 
 
 @patch("tools.csv_to_podcast.requests.head")
-def test_build_item_raises_for_missing_headers(mock_head):
-    headers = {"Content-Type": "audio/mpeg", "Content-Length": "10"}  # missing Accept-Ranges
+def test_accept_ranges_not_bytes_is_ignored(mock_head):
+    headers = {
+        "Content-Type": "audio/mpeg",
+        "Accept-Ranges": "none",
+        "Content-Length": "77",
+    }
+    mock_head.return_value = _mock_response(headers)
+    row = {"Book_Title": "T", "FullBook_MP3_URL": "http://example.com/a.mp3"}
+    item = build_item(row, "Wed, 01 Jan 2024 00:00:00 +0000")
+    assert 'length="77"' in item
+
+
+@patch("tools.csv_to_podcast.requests.head")
+def test_build_item_raises_for_missing_content_length(mock_head):
+    headers = {"Content-Type": "audio/mpeg"}  # missing Content-Length
     mock_head.return_value = _mock_response(headers)
     row = {"Book_Title": "T", "FullBook_MP3_URL": "http://example.com/a.mp3"}
     with pytest.raises(RuntimeError):
