@@ -126,6 +126,8 @@ def parse_page(html: str, url: str):
     attid = extract_attid(soup)
     duration, episodes = parse_duration_and_episodes(soup)
     cover = get_og_image(soup) or find_first_image_src(soup)
+    if cover:
+        cover = abs_url(cover)
 
     q = parse_qs(urlparse(url).query)
     g = q.get("g", [None])[0]
