@@ -40,12 +40,14 @@ def test_accept_ranges_not_bytes_is_ignored(mock_head):
 
 
 @patch("tools.csv_to_podcast.requests.head")
-def test_build_item_raises_for_missing_content_length(mock_head):
+def test_missing_content_length_is_skipped(mock_head, capsys):
     headers = {"Content-Type": "audio/mpeg"}  # missing Content-Length
     mock_head.return_value = _mock_response(headers)
     row = {"Book_Title": "T", "FullBook_MP3_URL": "http://example.com/a.mp3"}
-    with pytest.raises(RuntimeError):
-        build_item(row, "Wed, 01 Jan 2024 00:00:00 +0000")
+    item = build_item(row, "Wed, 01 Jan 2024 00:00:00 +0000")
+    assert item is None
+    out = capsys.readouterr().out
+    assert "Missing Content-Length" in out
 
 
 @patch("tools.csv_to_podcast.requests.head")
@@ -85,3 +87,14 @@ def test_long_description_trims_optional_fields(mock_head):
         mod.MAX_DESC_LENGTH = original_limit
     assert "زبان کتاب" not in item
     assert "کشور (منشأ یا مخاطب)" not in item
+
+
+@patch("tools.csv_to_podcast.requests.head")
+def test_invalid_content_type_is_skipped(mock_head, capsys):
+    headers = {"Content-Type": "text/html", "Content-Length": "123"}
+    mock_head.return_value = _mock_response(headers)
+    row = {"Book_Title": "T", "FullBook_MP3_URL": "http://example.com/a.mp3"}
+    item = build_item(row, "Wed, 01 Jan 2024 00:00:00 +0000")
+    assert item is None
+    out = capsys.readouterr().out
+    assert "Invalid Content-Type" in out
