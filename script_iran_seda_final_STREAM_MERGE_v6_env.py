@@ -162,6 +162,7 @@ def main():
 
     df_in = pd.read_csv(in_path, encoding="utf-8")
     merged_rows = []
+    error_rows = []
 
     for idx, row in df_in.iterrows():
         url = str(row["URL"]).strip()
@@ -178,6 +179,10 @@ def main():
             print(f"[{idx+1}/{len(df_in)}] ✓ {parsed.get('AudioBook_ID')}")
         except Exception as e:
             print(f"[{idx+1}/{len(df_in)}] ✗ {row.get('AudioBookID')}: {e}")
+            error_rows.append({
+                "AudioBook_ID": row.get("AudioBookID"),
+                "Error": str(e),
+            })
         time.sleep(random.uniform(0.1, 0.3))
 
     out_path = Path(OUT_CSV)
@@ -187,6 +192,15 @@ def main():
         w.writeheader()
         for r in merged_rows:
             w.writerow(r)
+
+    if error_rows:
+        err_path = Path(ERR_CSV)
+        err_path.parent.mkdir(parents=True, exist_ok=True)
+        with err_path.open("w", newline="", encoding="utf-8-sig") as f:
+            w = csv.DictWriter(f, fieldnames=["AudioBook_ID", "Error"])
+            w.writeheader()
+            for r in error_rows:
+                w.writerow(r)
 
     print("✓ Wrote:", OUT_CSV)
 
