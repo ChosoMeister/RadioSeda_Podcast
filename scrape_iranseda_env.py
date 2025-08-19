@@ -46,7 +46,7 @@ for (bid, url) in all_data:
 
 with open(OUTPUT_FILE, "w", newline="", encoding="utf-8-sig") as f:
     w = csv.writer(f)
-    w.writerow(["AudioBookID", "URL"])
+    w.writerow(["AudioBook_ID", "URL"])
     w.writerows(unique)
 
 print(f"[scrape] ✓ wrote {len(unique)} rows -> {OUTPUT_FILE}")

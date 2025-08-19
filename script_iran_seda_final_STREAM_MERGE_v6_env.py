@@ -177,7 +177,7 @@ def main():
             merged_rows.append(parsed)
             print(f"[{idx+1}/{len(df_in)}] ✓ {parsed.get('AudioBook_ID')}")
         except Exception as e:
-            print(f"[{idx+1}/{len(df_in)}] ✗ {row.get('AudioBookID')}: {e}")
+            print(f"[{idx+1}/{len(df_in)}] ✗ {row.get('AudioBook_ID')}: {e}")
         time.sleep(random.uniform(0.1, 0.3))
 
     out_path = Path(OUT_CSV)
