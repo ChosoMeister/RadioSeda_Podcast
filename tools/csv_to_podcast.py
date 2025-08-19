@@ -29,29 +29,65 @@ def read_rows(path):
 
 def build_item(row, pubdate):
     title = safe_get(row, "Book_Title") or "عنوان بدون نام"
-    desc  = safe_get(row, "Book_Description") or safe_get(row, "Book_Detail")
     audio = safe_get(row, "FullBook_MP3_URL") or safe_get(row, "Player_Link")
-    if not audio: return None
+    if not audio:
+        return None
+
     image = safe_get(row, "Cover_Image_URL")
     duration = safe_get(row, "Book_Duration")
     author = safe_get(row, "Book_Producer") or safe_get(row, "Book_Author")
     category = safe_get(row, "Book_Category") or safe_get(row, "Book_Genre")
     lang = safe_get(row, "Book_Language") or "fa"
     country = safe_get(row, "Book_Country")
+
+    # Build a rich description from available metadata fields
+    field_map = [
+        ("Book_Title", "عنوان کتاب"),
+        ("Book_Description", "توضیحات کتاب"),
+        ("Book_Detail", "جزئیات"),
+        ("Book_Language", "زبان"),
+        ("Book_Country", "کشور"),
+        ("Book_Author", "نویسنده"),
+        ("Book_Translator", "مترجم"),
+        ("Book_Narrator", "گوینده"),
+        ("Book_Director", "کارگردان"),
+        ("Book_Producer", "تهیه‌کننده"),
+        ("Book_SoundEngineer", "صدابردار"),
+        ("Book_Effector", "افکت‌گذار"),
+        ("Book_Actors", "بازیگران"),
+        ("Book_Genre", "ژانر"),
+        ("Book_Category", "دسته‌بندی"),
+        ("Book_Duration", "مدت زمان"),
+        ("Episode_Count", "تعداد اپیزود"),
+        ("Cover_Image_URL", "تصویر کاور"),
+    ]
+    desc_parts = []
+    for key, label in field_map:
+        val = safe_get(row, key)
+        if val:
+            desc_parts.append(f"{label}: {val}")
+    desc = "<br/>".join(desc_parts)
+
     guid_str = hashlib.sha1(audio.encode("utf-8")).hexdigest()
     parts = []
     parts.append("    <item>")
-    parts.append("      <title>"+escape(title)+"</title>")
-    parts.append("      <description>"+cdata(desc)+"</description>")
-    parts.append('      <enclosure url="'+escape(audio)+'" length="0" type="audio/mpeg"/>')
-    parts.append('      <guid isPermaLink="false">'+guid_str+"</guid>")
-    parts.append("      <pubDate>"+pubdate+"</pubDate>")
-    if author:   parts.append("      <itunes:author>"+escape(author)+"</itunes:author>")
-    if duration: parts.append("      <itunes:duration>"+escape(duration)+"</itunes:duration>")
-    if image:    parts.append('      <itunes:image href="'+escape(image)+'"/>')
-    if category: parts.append("      <category>"+escape(category)+"</category>")
-    if lang:     parts.append("      <language>"+escape(lang)+"</language>")
-    if country:  parts.append("      <itunes:keywords>"+escape(country)+"</itunes:keywords>")
+    parts.append("      <title>" + escape(title) + "</title>")
+    parts.append("      <description>" + cdata(desc) + "</description>")
+    parts.append('      <enclosure url="' + escape(audio) + '" length="0" type="audio/mpeg"/>')
+    parts.append('      <guid isPermaLink="false">' + guid_str + "</guid>")
+    parts.append("      <pubDate>" + pubdate + "</pubDate>")
+    if author:
+        parts.append("      <itunes:author>" + escape(author) + "</itunes:author>")
+    if duration:
+        parts.append("      <itunes:duration>" + escape(duration) + "</itunes:duration>")
+    if image:
+        parts.append('      <itunes:image href="' + escape(image) + '"/>')
+    if category:
+        parts.append("      <category>" + escape(category) + "</category>")
+    if lang:
+        parts.append("      <language>" + escape(lang) + "</language>")
+    if country:
+        parts.append("      <itunes:keywords>" + escape(country) + "</itunes:keywords>")
     parts.append("    </item>")
     return "\n".join(parts)
 
@@ -64,8 +100,8 @@ def main():
     ap.add_argument("--run-name", default=os.getenv("RUN_NAME","latest"))
     ap.add_argument("--site", required=True)
     ap.add_argument("--channel-title", default="کتاب‌های صوتی من")
-    ap.add_argument("--channel-author", default="ناشر نامشخص")
-    ap.add_argument("--channel-summary", default="فید پادکست تولید‌شده از CSV — استریم مستقیم از MP3")
+    ap.add_argument("--channel-author", default="Mustafa Tayefi")
+    ap.add_argument("--channel-summary", default="جمع آوری بخشی از کتاب های صوتی موجود در سایت ایران صدا  در جهت استفاده در نرم افزار پادگیر")
     args = ap.parse_args()
 
     rows = read_rows(args.csv)
