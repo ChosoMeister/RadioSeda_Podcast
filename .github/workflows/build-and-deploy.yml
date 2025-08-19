@@ -21,8 +21,6 @@ on:
         required: false
         type: string
         default: "1"
-  push:
-    branches: [ master, main ]  # هردو را پوشش بده
 
 permissions:
   contents: write
