@@ -37,7 +37,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      RUN_NAME: ${{ github.event.inputs.run_name || 'manual-' + github.run_id }}
+      # GitHub's expression language doesn't support `+` for string concatenation.
+      # Using `format` avoids runtime evaluation errors that prevented manual runs.
+      RUN_NAME: ${{ github.event.inputs.run_name || format('manual-{0}', github.run_id) }}
       RUNS_DIR: runs
       SOURCE_URL: ${{ github.event.inputs.source_url }}
       START_PAGE: ${{ github.event.inputs.start_page || '1' }}
