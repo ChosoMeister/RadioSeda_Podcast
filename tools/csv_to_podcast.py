@@ -116,7 +116,15 @@ def build_item(row, pubdate):
                     break
         desc = _join(trimmed)
 
-    length = fetch_audio_length(audio)
+    try:
+        length = fetch_audio_length(audio)
+    except Exception as e:
+        # If we cannot determine the length or content type, skip this entry
+        # instead of terminating the whole feed generation process. This can
+        # happen when the remote server responds with HTML or another
+        # unexpected payload when a HEAD request is made.
+        print(f"Skipping {audio}: {e}")
+        return None
     guid_str = hashlib.sha1(audio.encode("utf-8")).hexdigest()
     parts = []
     parts.append("    <item>")
