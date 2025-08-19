@@ -4,6 +4,13 @@ from datetime import datetime, timezone
 from xml.sax.saxutils import escape
 import requests
 
+# Maximum length allowed for the description field.  If the generated
+# description exceeds this value the script will gradually drop optional
+# metadata fields (see `field_map` in `build_item`).  The value is chosen to
+# stay well below common limits enforced by podcast directories such as
+# Apple Podcasts.
+MAX_DESC_LENGTH = 4000
+
 def now_rfc822():
     return datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S %z")
 
@@ -64,33 +71,50 @@ def build_item(row, pubdate):
     lang = safe_get(row, "Book_Language") or "fa"
     country = safe_get(row, "Book_Country")
 
-    # Build a rich description from available metadata fields
+    # Build a rich description from available metadata fields.  Each entry in
+    # ``field_map`` is ``(csv_key, label, optional)`` where ``optional`` marks
+    # fields that may be removed if the description grows too long.
     field_map = [
-        ("Book_Title", "عنوان کتاب"),
-        ("Book_Description", "توضیحات کتاب"),
-        ("Book_Detail", "جزئیات"),
-        ("Book_Language", "زبان"),
-        ("Book_Country", "کشور"),
-        ("Book_Author", "نویسنده"),
-        ("Book_Translator", "مترجم"),
-        ("Book_Narrator", "گوینده"),
-        ("Book_Director", "کارگردان"),
-        ("Book_Producer", "تهیه‌کننده"),
-        ("Book_SoundEngineer", "صدابردار"),
-        ("Book_Effector", "افکت‌گذار"),
-        ("Book_Actors", "بازیگران"),
-        ("Book_Genre", "ژانر"),
-        ("Book_Category", "دسته‌بندی"),
-        ("Book_Duration", "مدت زمان"),
-        ("Episode_Count", "تعداد اپیزود"),
-        ("Cover_Image_URL", "تصویر کاور"),
+        ("Book_Title", "عنوان کتاب", False),
+        ("Book_Description", "توضیحات کتاب", False),
+        ("Book_Detail", "جزئیات/متن کامل معرفی", False),
+        ("Book_Language", "زبان کتاب", True),
+        ("Book_Country", "کشور (منشأ یا مخاطب)", True),
+        ("Book_Author", "نویسنده", True),
+        ("Book_Translator", "مترجم", True),
+        ("Book_Narrator", "گوینده", True),
+        ("Book_Director", "کارگردان", True),
+        ("Book_Producer", "تهیه‌کننده/ناشر صوتی", True),
+        ("Book_SoundEngineer", "صدابردار/مهندس صدا", True),
+        ("Book_Effector", "افکت‌گذار", True),
+        ("Book_Actors", "بازیگران (اگر نمایشی است)", True),
+        ("Book_Genre", "ژانر", False),
+        ("Book_Category", "دسته‌بندی", False),
+        ("Book_Duration", "مدت زمان", False),
+        ("Episode_Count", "تعداد اپیزود (اگر چندقسمتی است)", True),
+        ("Cover_Image_URL", "آدرس تصویر کاور", True),
     ]
-    desc_parts = []
-    for key, label in field_map:
+
+    # Collect available pieces of description
+    desc_entries = []  # list of (optional, text)
+    for key, label, optional in field_map:
         val = safe_get(row, key)
         if val:
-            desc_parts.append(f"{label}: {val}")
-    desc = "<br/>".join(desc_parts)
+            desc_entries.append((optional, f"{label}: {val}"))
+
+    # If description is too long, iteratively drop optional fields from the end
+    def _join(entries):
+        return "<br/>".join(text for _, text in entries)
+
+    desc = _join(desc_entries)
+    if len(desc) > MAX_DESC_LENGTH:
+        trimmed = desc_entries[:]
+        while len(_join(trimmed)) > MAX_DESC_LENGTH and any(opt for opt, _ in trimmed):
+            for i in range(len(trimmed) - 1, -1, -1):
+                if trimmed[i][0]:
+                    trimmed.pop(i)
+                    break
+        desc = _join(trimmed)
 
     length = fetch_audio_length(audio)
     guid_str = hashlib.sha1(audio.encode("utf-8")).hexdigest()
