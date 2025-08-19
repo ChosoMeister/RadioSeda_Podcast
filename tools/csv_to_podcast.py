@@ -32,8 +32,11 @@ def read_rows(path):
 def fetch_audio_length(url: str) -> int:
     """Return Content-Length of an MP3 after validating required headers.
 
-    Raises RuntimeError if `Content-Type` is not `audio/mpeg`, if
-    `Accept-Ranges` is not `bytes`, or if `Content-Length` is missing.
+    Raises RuntimeError if `Content-Type` is not `audio/mpeg` or if
+    `Content-Length` is missing. The `Accept-Ranges` header used to be
+    required, but many servers (including IranSeda) either omit it or set it
+    to values other than ``bytes``. The script now tolerates such responses
+    as long as a valid ``Content-Length`` is provided.
     """
     r = requests.head(url, allow_redirects=True, timeout=30)
     r.raise_for_status()
@@ -41,8 +44,9 @@ def fetch_audio_length(url: str) -> int:
     ctype = headers.get("content-type", "").split(";")[0].strip().lower()
     if ctype != "audio/mpeg":
         raise RuntimeError(f"Invalid Content-Type: {headers.get('content-type')}")
-    if headers.get("accept-ranges", "").lower() != "bytes":
-        raise RuntimeError("Accept-Ranges must be 'bytes'")
+    # Accept-Ranges might be missing or set to 'none'. We no longer require
+    # it to be ``bytes`` because some audio hosts do not advertise byte-range
+    # support even though the content is downloadable.
     if "content-length" not in headers:
         raise RuntimeError("Missing Content-Length")
     return int(headers["content-length"])
